@@ -2,11 +2,14 @@
 #include <stdlib.h>     /* EXIT_SUCCESS, EXIT_FAILURE */
 #include <windows.h>
 #include <tchar.h>
+#include <lmerr.h>
+
+#pragma comment(linker, "/subsystem:console") 
 
 static TCHAR *convertToShortName(TCHAR *fileName);
 static TCHAR *getCurrentWorkingDirectory();
-static void fail(TCHAR *message, DWORD errorCode);
-static void printError(TCHAR *message, DWORD errorCode);
+static void fail(const TCHAR *message, DWORD errorCode);
+static void printError(const TCHAR *message, DWORD errorCode);
 static TCHAR *getMessage(unsigned long errorCode);
 
 int _tmain(int argc, TCHAR *argv[])
@@ -16,12 +19,12 @@ int _tmain(int argc, TCHAR *argv[])
 
     if (argc == 1) {
         cwd = getCurrentWorkingDirectory();
-        puts(convertToShortName(cwd));
+        _putts(convertToShortName(cwd));
         free(cwd);
     }
     else {
         for (i = 1; i < argc; i++) {
-            puts(convertToShortName(argv[i]));
+            _putts(convertToShortName(argv[i]));
         }
     }
     return EXIT_SUCCESS;
@@ -84,18 +87,18 @@ TCHAR *convertToShortName(TCHAR *filename)
     return shortpath;
 }
 
-void fail(TCHAR *message, DWORD errorCode)
+void fail(const TCHAR *message, DWORD errorCode)
 {
     printError(message, errorCode);
     exit(EXIT_FAILURE);
 }
 
-void printError(const TCHAR *offendingObject, unsigned long errorCode)
+void printError(const TCHAR *offendingObject, DWORD errorCode)
 {
     TCHAR *message;
 
     message = getMessage(errorCode);
-    _tfprintf(stderr, TEXT("which: \u201C%s\u201D: %s\n"), offendingObject, message);
+    _ftprintf(stderr, TEXT("which: \u201C%s\u201D: %s\n"), offendingObject, message);
     free(message);
 }
 
@@ -104,7 +107,7 @@ void printError(const TCHAR *offendingObject, unsigned long errorCode)
    by the caller. */
 TCHAR *getMessage(unsigned long errorCode)
 {
-    HMODULE messageMocation;
+    HMODULE messageLocation;
     TCHAR *message;
     unsigned long messageLength;
 
@@ -114,7 +117,7 @@ TCHAR *getMessage(unsigned long errorCode)
     }
     else {
         /* NULL means to look for the message in the system module. */
-        messageLocaion = NULL;
+        messageLocation = NULL;
     }
 
     /* Call FormatMessage to allow for message text to be acquired
@@ -132,7 +135,9 @@ TCHAR *getMessage(unsigned long errorCode)
             NULL);
 
     if (messageLength == 0) {
-        message = concatUInt32(TEXT("Error code "), errorCode);
+        const size_t MSG_SIZE = 128;
+        message = (TCHAR *) malloc(MSG_SIZE * sizeof(TCHAR));
+        _sntprintf(message, MSG_SIZE, TEXT("Error code: %d"), errorCode);
     }
     /* If a message source was loaded, unload it. */
     if (messageLocation != NULL) {
